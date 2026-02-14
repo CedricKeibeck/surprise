@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Striped Heart (k: 0→100)</title>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.3/lib/p5.min.js"></script>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #fff; }
+    .note { position: fixed; left: 10px; top: 10px; background: rgba(255,255,255,0.85);
+            padding: 8px 10px; border: 1px solid #ddd; border-radius: 8px; max-width: 95vw; }
+  </style>
+</head>
+<body>
+  <div class="note">
+    <div><b>Striped heart</b></div>
+    <div>y = |x|^(2/3) ± 0.9 sin(kx) √(3 - x²)</div>
+    <div id="kreadout"></div>
+  </div>
+
+<script>
+let kMax = 100;
+let a = 0.9;
+let N = 900;            // number of stripes
+let frames = 600;      // animation length (frames)
+let t = 0;
+
+const xmax = Math.sqrt(3);
+
+// world (math) view window
+const xView = [-2, 2];
+const yView = [-2.2, 3.0];
+
+// square drawing region inside the canvas
+let S = 0;              // square side length (px)
+let ox = 0, oy = 0;     // top-left offset of the square (px)
+let pad = 30;           // padding inside the square (px)
+
+function computeSquare() {
+  // Make the canvas full-window, but draw into a centered square.
+  // Leave a little space so it never touches edges.
+  const margin = 10;
+  S = Math.min(window.innerWidth, window.innerHeight) - 2 * margin;
+  S = Math.max(S, 200); // keep usable if very small
+  ox = (window.innerWidth  - S) / 2;
+  oy = (window.innerHeight - S) / 2;
+  pad = Math.max(20, 0.06 * S);
+}
+
+function setup() {
+  createCanvas(window.innerWidth, window.innerHeight);
+  frameRate(60);
+  computeSquare();
+}
+
+function windowResized() {
+  resizeCanvas(window.innerWidth, window.innerHeight);
+  computeSquare();
+}
+
+function worldToScreen(x, y) {
+  // map world coords into the centered square (with padding)
+  const left   = ox + pad;
+  const right  = ox + S - pad;
+  const top    = oy + pad;
+  const bottom = oy + S - pad;
+
+  const sx = map(x, xView[0], xView[1], left, right);
+  const sy = map(y, yView[0], yView[1], bottom, top); // y inverted
+  return [sx, sy];
+}
+
+function drawAxes() {
+  stroke(0);
+  strokeWeight(1);
+
+  // optional: draw square border so it's obvious it's square
+  noFill();
+  rect(ox, oy, S, S);
+
+  // x-axis (y=0)
+  let [x0, y0] = worldToScreen(xView[0], 0);
+  let [x1, y1] = worldToScreen(xView[1], 0);
+  line(x0, y0, x1, y1);
+
+  // y-axis (x=0)
+  let [xa, ya] = worldToScreen(0, yView[0]);
+  let [xb, yb] = worldToScreen(0, yView[1]);
+  line(xa, ya, xb, yb);
+
+  // ticks
+  for (let xt = -2; xt <= 2; xt++) {
+    let [sx, sy] = worldToScreen(xt, 0);
+    line(sx, sy - 5, sx, sy + 5);
+  }
+  for (let yt = -2; yt <= 3; yt++) {
+    let [sx, sy] = worldToScreen(0, yt);
+    line(sx - 5, sy, sx + 5, sy);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // smooth k ramp (cosine easing)
+  let u = (t % frames) / (frames - 1);
+  let k = kMax * (0.5 - 0.5 * Math.cos(Math.PI * u));
+  document.getElementById("kreadout").textContent = "k = " + k.toFixed(2);
+
+  drawAxes();
+
+  // draw stripes
+  stroke(255, 0, 0);
+  strokeWeight(1);
+
+  for (let i = 0; i < N; i++) {
+    let x = -xmax + (2 * xmax) * (i / (N - 1));
+    let base = Math.pow(Math.abs(x), 2/3);
+    let env = Math.sqrt(Math.max(0, 3 - x*x));
+    let modu = a * Math.sin(k * x) * env;
+
+    let yTop = base + modu;
+    let yBot = base - modu;
+
+    let [sx1, sy1] = worldToScreen(x, yBot);
+    let [sx2, sy2] = worldToScreen(x, yTop);
+    line(sx1, sy1, sx2, sy2);
+  }
+
+  t++;
+}
+</script>
+</body>
+</html>
